@@ -71,17 +71,6 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
-/* NEW CODE: Comparison function for priority-ordered ready list.
-   Returns true if thread A has higher priority than thread B. */
-static bool
-thread_priority_greater (const struct list_elem *a,
-                         const struct list_elem *b,
-                         void *aux UNUSED)
-{
-  return list_entry (a, struct thread, elem)->priority
-       > list_entry (b, struct thread, elem)->priority;
-}
-
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -248,8 +237,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  /* NEW CODE: insert in priority order instead of push_back */
-  list_insert_ordered (&ready_list, &t->elem, thread_priority_greater, NULL);
+  list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -320,8 +308,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    /* NEW CODE: insert in priority order instead of push_back */
-    list_insert_ordered (&ready_list, &cur->elem, thread_priority_greater, NULL);
+    list_push_back (&ready_list, &cur->elem);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -478,9 +465,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
 
-  /* NEW CODE: initialize wake_tick */
+    /*NEW CODE ADDED*/
   t->wake_tick = 0;
 
+   
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
